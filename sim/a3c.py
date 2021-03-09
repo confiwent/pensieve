@@ -5,7 +5,7 @@ import tflearn
 
 GAMMA = 0.99
 A_DIM = 6
-ENTROPY_WEIGHT = 0.5
+# ENTROPY_WEIGHT = 0.5
 ENTROPY_EPS = 1e-6
 S_INFO = 4
 
@@ -20,6 +20,7 @@ class ActorNetwork(object):
         self.s_dim = state_dim
         self.a_dim = action_dim
         self.lr_rate = learning_rate
+        self.entro_w = tf.placeholder(tf.float32, None)
 
         # Create the actor network
         self.inputs, self.out = self.create_actor_network()
@@ -48,7 +49,7 @@ class ActorNetwork(object):
                        tf.log(tf.reduce_sum(tf.multiply(self.out, self.acts),
                                             reduction_indices=1, keep_dims=True)),
                        -self.act_grad_weights)) \
-                   + ENTROPY_WEIGHT * tf.reduce_sum(tf.multiply(self.out,
+                   + self.entro_w * tf.reduce_sum(tf.multiply(self.out,
                                                            tf.log(self.out + ENTROPY_EPS)))
 
         # Combine the gradients here
@@ -67,7 +68,7 @@ class ActorNetwork(object):
             split_2 = tflearn.conv_1d(inputs[:, 2:3, :], 128, 4, activation='relu')
             split_3 = tflearn.conv_1d(inputs[:, 3:4, :], 128, 4, activation='relu')
             split_4 = tflearn.conv_1d(inputs[:, 4:5, :A_DIM], 128, 4, activation='relu')
-            split_5 = tflearn.fully_connected(inputs[:, 4:5, -1], 128, activation='relu')
+            split_5 = tflearn.fully_connected(inputs[:, 5:6, -1], 128, activation='relu')
 
             split_2_flat = tflearn.flatten(split_2)
             split_3_flat = tflearn.flatten(split_3)
@@ -93,10 +94,11 @@ class ActorNetwork(object):
             self.inputs: inputs
         })
 
-    def get_gradients(self, inputs, acts, act_grad_weights):
+    def get_gradients(self, inputs, acts, entro_w, act_grad_weights):
         return self.sess.run(self.actor_gradients, feed_dict={
             self.inputs: inputs,
             self.acts: acts,
+            self.entro_w: entro_w,
             self.act_grad_weights: act_grad_weights
         })
 
@@ -165,7 +167,7 @@ class CriticNetwork(object):
             split_2 = tflearn.conv_1d(inputs[:, 2:3, :], 128, 4, activation='relu')
             split_3 = tflearn.conv_1d(inputs[:, 3:4, :], 128, 4, activation='relu')
             split_4 = tflearn.conv_1d(inputs[:, 4:5, :A_DIM], 128, 4, activation='relu')
-            split_5 = tflearn.fully_connected(inputs[:, 4:5, -1], 128, activation='relu')
+            split_5 = tflearn.fully_connected(inputs[:, 5:6, -1], 128, activation='relu')
 
             split_2_flat = tflearn.flatten(split_2)
             split_3_flat = tflearn.flatten(split_3)
@@ -215,7 +217,7 @@ class CriticNetwork(object):
         })
 
 
-def compute_gradients(s_batch, a_batch, r_batch, terminal, actor, critic):
+def compute_gradients(s_batch, a_batch, r_batch, entro_w, terminal, actor, critic):
     """
     batch of s, a, r is from samples in a sequence
     the format is in np.array([batch_size, s/a/r_dim])
@@ -239,7 +241,7 @@ def compute_gradients(s_batch, a_batch, r_batch, terminal, actor, critic):
 
     td_batch = R_batch - v_batch
 
-    actor_gradients = actor.get_gradients(s_batch, a_batch, td_batch)
+    actor_gradients = actor.get_gradients(s_batch, a_batch, entro_w, td_batch)
     critic_gradients = critic.get_gradients(s_batch, R_batch)
 
     return actor_gradients, critic_gradients, td_batch

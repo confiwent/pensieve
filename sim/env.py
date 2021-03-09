@@ -83,7 +83,7 @@ class Environment:
                 # loop back in the beginning
                 # note: trace file starts with time 0
                 self.mahimahi_ptr = 1
-                self.last_mahimahi_time = 0
+                self.last_mahimahi_time = self.cooked_time[self.mahimahi_ptr - 1]
 
         delay *= MILLISECONDS_IN_SECOND
         delay += LINK_RTT
@@ -125,7 +125,7 @@ class Environment:
                     # loop back in the beginning
                     # note: trace file starts with time 0
                     self.mahimahi_ptr = 1
-                    self.last_mahimahi_time = 0
+                    self.last_mahimahi_time = self.cooked_time[self.mahimahi_ptr - 1]
 
         # the "last buffer size" return to the controller
         # Note: in old version of dash the lowest buffer is 0.

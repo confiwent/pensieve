@@ -15,14 +15,15 @@ A_DIM = 6
 ACTOR_LR_RATE = 0.0001
 CRITIC_LR_RATE = 0.001
 NUM_AGENTS = 16
-TRAIN_SEQ_LEN = 100  # take as a train batch
-MODEL_SAVE_INTERVAL = 100
+ENTROY_WEIGHT = 0.9
+TRAIN_SEQ_LEN = 20  # take as a train batch
+MODEL_SAVE_INTERVAL = 1000
 VIDEO_BIT_RATE = [300,750,1200,1850,2850,4300]  # Kbps
 HD_REWARD = [1, 2, 3, 12, 15, 20]
 BUFFER_NORM_FACTOR = 10.0
 CHUNK_TIL_VIDEO_END_CAP = 48.0
 M_IN_K = 1000.0
-REBUF_PENALTY = 4.3  # 1 sec rebuffering -> 3 Mbps
+REBUF_PENALTY = 2.66  # 1 sec rebuffering -> 3 Mbps 4.3
 SMOOTH_PENALTY = 1
 DEFAULT_QUALITY = 1  # default video quality without agent
 RANDOM_SEED = 42
@@ -31,7 +32,7 @@ SUMMARY_DIR = './results'
 LOG_FILE = './results/log'
 TEST_LOG_FOLDER = './test_results/'
 TRAIN_TRACES = './cooked_traces/'
-# NN_MODEL = './results/pretrain_linear_reward.ckpt'
+# NN_MODEL = './models/FCC/nn_model_ep_61000.ckpt'
 NN_MODEL = None
 
 
@@ -107,6 +108,7 @@ def central_agent(net_params_queues, exp_queues):
             print("Model restored.")
 
         epoch = 0
+        entro_w = ENTROY_WEIGHT
 
         # assemble experiences from agents, compute the gradients
         while True:
@@ -143,6 +145,7 @@ def central_agent(net_params_queues, exp_queues):
                         s_batch=np.stack(s_batch, axis=0),
                         a_batch=np.vstack(a_batch),
                         r_batch=np.vstack(r_batch),
+                        entro_w=entro_w,
                         terminal=terminal, actor=actor, critic=critic)
 
                 actor_gradient_batch.append(actor_gradient)
@@ -197,6 +200,7 @@ def central_agent(net_params_queues, exp_queues):
                 testing(epoch, 
                     SUMMARY_DIR + "/nn_model_ep_" + str(epoch) + ".ckpt", 
                     test_log_file)
+                entro_w = 0.978 * entro_w # reach 0.1 over 100K iterations
 
 
 def agent(agent_id, all_cooked_time, all_cooked_bw, net_params_queue, exp_queue):
@@ -244,23 +248,27 @@ def agent(agent_id, all_cooked_time, all_cooked_bw, net_params_queue, exp_queue)
 
             # -- linear reward --
             # reward is video quality - rebuffer penalty - smoothness
-            reward = VIDEO_BIT_RATE[bit_rate] / M_IN_K \
-                     - REBUF_PENALTY * rebuf \
-                     - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
-                                               VIDEO_BIT_RATE[last_bit_rate]) / M_IN_K
+            # reward = VIDEO_BIT_RATE[bit_rate] / M_IN_K \
+            #          - REBUF_PENALTY * rebuf \
+            #          - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
+            #                                    VIDEO_BIT_RATE[last_bit_rate]) / M_IN_K
 
             # -- log scale reward --
-            # log_bit_rate = np.log(VIDEO_BIT_RATE[bit_rate] / float(VIDEO_BIT_RATE[-1]))
-            # log_last_bit_rate = np.log(VIDEO_BIT_RATE[last_bit_rate] / float(VIDEO_BIT_RATE[-1]))
+            log_bit_rate = np.log(VIDEO_BIT_RATE[bit_rate] / float(VIDEO_BIT_RATE[0]))
+            log_last_bit_rate = np.log(VIDEO_BIT_RATE[last_bit_rate] / float(VIDEO_BIT_RATE[0]))
 
-            # reward = log_bit_rate \
-            #          - REBUF_PENALTY * rebuf \
-            #          - SMOOTH_PENALTY * np.abs(log_bit_rate - log_last_bit_rate)
+            reward = log_bit_rate \
+                     - REBUF_PENALTY * rebuf \
+                     - SMOOTH_PENALTY * np.abs(log_bit_rate - log_last_bit_rate)
 
             # -- HD reward --
             # reward = HD_REWARD[bit_rate] \
             #          - REBUF_PENALTY * rebuf \
             #          - SMOOTH_PENALTY * np.abs(HD_REWARD[bit_rate] - HD_REWARD[last_bit_rate])
+
+            #-- reward scaling --
+            reward_max = 2.67
+            reward = float(max(min(reward, reward_max), -reward_max) / reward_max)
 
             r_batch.append(reward)
 
