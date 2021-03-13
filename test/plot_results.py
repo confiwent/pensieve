@@ -16,7 +16,7 @@ SMOOTH_P = 1
 COLOR_MAP = plt.cm.jet #nipy_spectral, Set1,Paired 
 SIM_DP = 'sim_dp'
 #SCHEMES = ['BB', 'RB', 'FIXED', 'FESTIVE', 'BOLA', 'RL',  'sim_rl', SIM_DP]
-SCHEMES = ['sim_rl', SIM_DP]
+SCHEMES = ['sim_rl', 'sim_mpc']
 
 def main():
 	time_all = {}
@@ -41,7 +41,7 @@ def main():
 		bw = []
 		reward = []
 
-		print log_file
+		print(log_file)
 
 		with open(RESULTS_FOLDER + log_file, 'rb') as f:
 			if SIM_DP in log_file:

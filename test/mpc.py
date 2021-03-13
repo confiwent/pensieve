@@ -8,7 +8,7 @@ import itertools
 S_INFO = 5  # bit_rate, buffer_size, rebuffering_time, bandwidth_measurement, chunk_til_video_end
 S_LEN = 8  # take how many frames in the past
 A_DIM = 6
-MPC_FUTURE_CHUNK_COUNT = 5
+MPC_FUTURE_CHUNK_COUNT = 3
 ACTOR_LR_RATE = 0.0001
 CRITIC_LR_RATE = 0.001
 VIDEO_BIT_RATE = [300,750,1200,1850,2850,4300]  # Kbps
@@ -24,6 +24,7 @@ RANDOM_SEED = 42
 RAND_RANGE = 1000000
 SUMMARY_DIR = './results'
 LOG_FILE = './results/log_sim_mpc'
+TEST_TRACES = './test_traces/' 
 # log in format of time_stamp bit_rate buffer_size rebuffer_time chunk_size download_time reward
 # NN_MODEL = './models/nn_model_ep_5900.ckpt'
 
@@ -170,7 +171,7 @@ def main():
             error_pos = -len(past_errors)
         max_error = float(max(past_errors[error_pos:]))
         future_bandwidth = harmonic_bandwidth/(1+max_error)  # robustMPC here
-        past_bandwidth_ests.append(harmonic_bandwidth)
+        past_bandwidth_ests.append(future_bandwidth)
 
 
         # future chunks length (try 4 if that many remaining)

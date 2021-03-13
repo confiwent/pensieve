@@ -268,7 +268,7 @@ def agent(agent_id, all_cooked_time, all_cooked_bw, net_params_queue, exp_queue)
 
             #-- reward scaling --
             reward_max = 2.67
-            reward = float(max(min(reward, reward_max), -reward_max) / reward_max)
+            reward = float(max(min(reward, reward_max), - 10* reward_max) / reward_max)
 
             r_batch.append(reward)
 
